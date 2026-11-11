@@ -1,10 +1,14 @@
+import NextLink from "next/link";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
+import Link from "@mui/material/Link";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/budget/format";
+import { todayISO, addDaysISO } from "@/lib/budget/recurrence";
 import WhereItWent, { type CategorySlice } from "@/components/budget/WhereItWent";
 import ConnectBankButton from "@/components/budget/ConnectBankButton";
 
@@ -50,6 +54,13 @@ export default async function OverviewPage() {
     .order("occurred_on", { ascending: false });
 
   const transactions = (txns ?? []) as unknown as Txn[];
+
+  const { data: billRows } = await supabase.from("bills").select("due_date").eq("status", "unpaid");
+  const dueToday = todayISO();
+  const dueSoonLimit = addDaysISO(dueToday, 7);
+  const upcomingBills = (billRows ?? []).filter((b: { due_date: string }) => b.due_date <= dueSoonLimit);
+  const overdueCount = upcomingBills.filter((b: { due_date: string }) => b.due_date < dueToday).length;
+  const dueSoonCount = upcomingBills.length - overdueCount;
 
   if (!accounts || accounts.length === 0) {
     return (
@@ -100,6 +111,17 @@ export default async function OverviewPage() {
       <Typography variant="h1" component="h1">
         Hi {name} 👋
       </Typography>
+
+      {overdueCount + dueSoonCount > 0 && (
+        <Alert severity={overdueCount > 0 ? "warning" : "info"}>
+          {overdueCount > 0
+            ? `${overdueCount} bill${overdueCount > 1 ? "s are" : " is"} overdue. `
+            : `${dueSoonCount} bill${dueSoonCount > 1 ? "s are" : " is"} due in the next 7 days. `}
+          <Link component={NextLink} href="/dashboard/bills">
+            Review bills
+          </Link>
+        </Alert>
+      )}
 
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
         {[

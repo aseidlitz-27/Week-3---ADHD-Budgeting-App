@@ -1,4 +1,6 @@
+import NextLink from "next/link";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Container from "@mui/material/Container";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -24,10 +26,14 @@ export default function Home() {
             tracking, and timing for you — and helps the moment you&apos;re about
             to spend, not in a monthly report you&apos;ll never open.
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Foundation in place: Next.js + Material UI, deploying on Vercel, data
-            on Supabase. Features are being built one at a time.
-          </Typography>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <Button component={NextLink} href="/signup" variant="contained" size="large">
+              Create your account
+            </Button>
+            <Button component={NextLink} href="/login" variant="outlined" size="large">
+              Log in
+            </Button>
+          </Stack>
         </Stack>
       </Container>
     </Box>

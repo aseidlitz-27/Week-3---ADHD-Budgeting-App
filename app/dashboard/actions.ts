@@ -143,6 +143,20 @@ export async function addManualTransaction(formData: FormData): Promise<Result> 
   });
   if (error) return { error: error.message };
 
+  // Keep the account balance in step with new activity.
+  const delta = type === "income" ? amount : -amount;
+  const { data: acc } = await supabase
+    .from("accounts")
+    .select("current_balance")
+    .eq("id", account_id)
+    .single();
+  if (acc) {
+    await supabase
+      .from("accounts")
+      .update({ current_balance: Number(acc.current_balance) + delta })
+      .eq("id", account_id);
+  }
+
   revalidatePath("/dashboard", "layout");
   return { ok: true };
 }

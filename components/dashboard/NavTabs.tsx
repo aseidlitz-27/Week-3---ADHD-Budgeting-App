@@ -7,6 +7,7 @@ import Tab from "@mui/material/Tab";
 
 const TABS = [
   { label: "Overview", href: "/dashboard" },
+  { label: "Safe to spend", href: "/dashboard/safe-to-spend" },
   { label: "Transactions", href: "/dashboard/transactions" },
   { label: "Bills", href: "/dashboard/bills" },
   { label: "Accounts", href: "/dashboard/accounts" },

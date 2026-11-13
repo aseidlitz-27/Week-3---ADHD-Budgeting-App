@@ -9,7 +9,10 @@ import Typography from "@mui/material/Typography";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/budget/format";
 import { todayISO, addDaysISO } from "@/lib/budget/recurrence";
+import { computeSafeToSpend } from "@/lib/budget/safeToSpend";
+import type { ForecastBill, ForecastIncome } from "@/lib/budget/forecast";
 import WhereItWent, { type CategorySlice } from "@/components/budget/WhereItWent";
+import SafeToSpendNumber from "@/components/budget/SafeToSpendNumber";
 import ConnectBankButton from "@/components/budget/ConnectBankButton";
 
 type Txn = {
@@ -55,12 +58,23 @@ export default async function OverviewPage() {
 
   const transactions = (txns ?? []) as unknown as Txn[];
 
-  const { data: billRows } = await supabase.from("bills").select("due_date").eq("status", "unpaid");
+  const { data: billRows } = await supabase
+    .from("bills")
+    .select("name,amount,due_date,recurrence,status");
+  const { data: incomeRows } = await supabase.from("incomes").select("amount,next_date,recurrence");
+  const { data: settingsRow } = await supabase
+    .from("settings")
+    .select("safe_to_spend_buffer")
+    .eq("user_id", user!.id)
+    .single();
+
   const dueToday = todayISO();
   const dueSoonLimit = addDaysISO(dueToday, 7);
-  const upcomingBills = (billRows ?? []).filter((b: { due_date: string }) => b.due_date <= dueSoonLimit);
-  const overdueCount = upcomingBills.filter((b: { due_date: string }) => b.due_date < dueToday).length;
-  const dueSoonCount = upcomingBills.length - overdueCount;
+  const unpaidUpcoming = (billRows ?? []).filter(
+    (b: { due_date: string; status: string }) => b.status === "unpaid" && b.due_date <= dueSoonLimit,
+  );
+  const overdueCount = unpaidUpcoming.filter((b: { due_date: string }) => b.due_date < dueToday).length;
+  const dueSoonCount = unpaidUpcoming.length - overdueCount;
 
   if (!accounts || accounts.length === 0) {
     return (
@@ -88,6 +102,13 @@ export default async function OverviewPage() {
 
   const totalBalance = accounts.reduce((s, a: { current_balance: number }) => s + Number(a.current_balance), 0);
 
+  const sts = computeSafeToSpend(
+    totalBalance,
+    (billRows ?? []) as ForecastBill[],
+    (incomeRows ?? []) as ForecastIncome[],
+    Number(settingsRow?.safe_to_spend_buffer ?? 0),
+  );
+
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
@@ -111,6 +132,8 @@ export default async function OverviewPage() {
       <Typography variant="h1" component="h1">
         Hi {name} 👋
       </Typography>
+
+      <SafeToSpendNumber sts={sts} compact />
 
       {overdueCount + dueSoonCount > 0 && (
         <Alert severity={overdueCount > 0 ? "warning" : "info"}>

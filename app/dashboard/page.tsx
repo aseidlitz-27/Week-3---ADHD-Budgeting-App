@@ -8,12 +8,15 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/budget/format";
-import { todayISO, addDaysISO } from "@/lib/budget/recurrence";
+import { todayISO, addDaysISO, daysBetween } from "@/lib/budget/recurrence";
 import { computeSafeToSpend } from "@/lib/budget/safeToSpend";
 import type { ForecastBill, ForecastIncome } from "@/lib/budget/forecast";
+import { computeMilestones } from "@/lib/budget/rewards";
 import WhereItWent, { type CategorySlice } from "@/components/budget/WhereItWent";
 import SafeToSpendNumber from "@/components/budget/SafeToSpendNumber";
 import ConnectBankButton from "@/components/budget/ConnectBankButton";
+import RewardsCard from "@/components/budget/RewardsCard";
+import ReEntryCard from "@/components/budget/ReEntryCard";
 
 type Txn = {
   id: string;
@@ -21,6 +24,7 @@ type Txn = {
   type: "expense" | "income";
   merchant: string | null;
   occurred_on: string;
+  bill_id: string | null;
   category: { name: string; color: string | null } | null;
 };
 
@@ -53,7 +57,7 @@ export default async function OverviewPage() {
   const { data: accounts } = await supabase.from("accounts").select("id,current_balance");
   const { data: txns } = await supabase
     .from("transactions")
-    .select("id,amount,type,merchant,occurred_on,category:categories(name,color)")
+    .select("id,amount,type,merchant,occurred_on,bill_id,category:categories(name,color)")
     .order("occurred_on", { ascending: false });
 
   const transactions = (txns ?? []) as unknown as Txn[];
@@ -62,9 +66,10 @@ export default async function OverviewPage() {
     .from("bills")
     .select("name,amount,due_date,recurrence,status");
   const { data: incomeRows } = await supabase.from("incomes").select("amount,next_date,recurrence");
+  const { data: rewardRows } = await supabase.from("rewards").select("kind");
   const { data: settingsRow } = await supabase
     .from("settings")
-    .select("safe_to_spend_buffer")
+    .select("safe_to_spend_buffer,notifications_enabled,reminder_style")
     .eq("user_id", user!.id)
     .single();
 
@@ -109,6 +114,23 @@ export default async function OverviewPage() {
     Number(settingsRow?.safe_to_spend_buffer ?? 0),
   );
 
+  const notificationsOn = settingsRow?.notifications_enabled !== false;
+  const reminderStyle = settingsRow?.reminder_style ?? "gentle";
+
+  const recordedRewardKinds = (rewardRows ?? []).map((r: { kind: string }) => r.kind);
+  const txDates = transactions.map((t) => t.occurred_on);
+  const daysTracked = txDates.length ? daysBetween(txDates[txDates.length - 1], txDates[0]) : 0;
+  const daysSince = txDates.length ? daysBetween(txDates[0], todayISO()) : 0;
+  const paidBills = transactions.filter((t) => t.bill_id).length;
+  const milestones = computeMilestones({
+    accounts: accounts.length,
+    transactions: transactions.length,
+    incomes: (incomeRows ?? []).length,
+    bills: (billRows ?? []).length,
+    paidBills,
+    daysTracked,
+  });
+
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
@@ -133,12 +155,16 @@ export default async function OverviewPage() {
         Hi {name} 👋
       </Typography>
 
+      {daysSince >= 2 && <ReEntryCard daysSince={daysSince} />}
+
       <SafeToSpendNumber sts={sts} compact />
 
-      {overdueCount + dueSoonCount > 0 && (
+      {notificationsOn && overdueCount + dueSoonCount > 0 && (
         <Alert severity={overdueCount > 0 ? "warning" : "info"}>
           {overdueCount > 0
-            ? `${overdueCount} bill${overdueCount > 1 ? "s are" : " is"} overdue. `
+            ? `${overdueCount} bill${overdueCount > 1 ? "s are" : " is"} overdue. ${
+                reminderStyle === "direct" ? "Pay them to avoid late fees. " : "No panic — sort them when you can. "
+              }`
             : `${dueSoonCount} bill${dueSoonCount > 1 ? "s are" : " is"} due in the next 7 days. `}
           <Link component={NextLink} href="/dashboard/bills">
             Review bills
@@ -194,6 +220,10 @@ export default async function OverviewPage() {
             </Box>
           ))}
         </Stack>
+      </Card>
+
+      <Card title="Your wins">
+        <RewardsCard milestones={milestones} recorded={recordedRewardKinds} />
       </Card>
     </Stack>
   );

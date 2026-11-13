@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { SEED_ACCOUNTS, generateSeedTransactions } from "@/lib/budget/sampleData";
 import { categorizeMerchant } from "@/lib/budget/categorize";
+import { todayISO, addDaysISO, daysBetween } from "@/lib/budget/recurrence";
 
 type Result = { ok?: true; error?: string };
 
@@ -159,4 +160,87 @@ export async function addManualTransaction(formData: FormData): Promise<Result> 
 
   revalidatePath("/dashboard", "layout");
   return { ok: true };
+}
+
+/** Record a small-win milestone once (idempotent). No-op if already earned. */
+export async function recordReward(kind: string): Promise<Result> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You are not signed in." };
+
+  const { data: existing } = await supabase.from("rewards").select("id").eq("kind", kind).limit(1);
+  if (existing && existing.length) return { ok: true };
+
+  await supabase.from("rewards").insert({ user_id: user.id, kind, acknowledged: true });
+  return { ok: true };
+}
+
+const CATCHUP_MERCHANTS: { merchant: string; amount: number }[] = [
+  { merchant: "Tesco Express", amount: 18.4 },
+  { merchant: "Starbucks", amount: 4.95 },
+  { merchant: "TfL Travel", amount: 6.6 },
+  { merchant: "Amazon", amount: 23.75 },
+  { merchant: "Local Cafe", amount: 9.2 },
+];
+
+/**
+ * Shame-free re-entry: import the transactions that happened while the user was
+ * away, from their last recorded activity up to today. Fake data only.
+ */
+export async function catchUp(): Promise<{ ok?: true; error?: string; imported?: number }> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You are not signed in." };
+
+  const { data: accts } = await supabase
+    .from("accounts")
+    .select("id")
+    .eq("connection_status", "active")
+    .limit(1);
+  if (!accts || accts.length === 0) return { error: "Connect a bank first." };
+  const account_id = accts[0].id;
+
+  const { data: latest } = await supabase
+    .from("transactions")
+    .select("occurred_on")
+    .order("occurred_on", { ascending: false })
+    .limit(1);
+  const today = todayISO();
+  const lastDate = latest?.[0]?.occurred_on ?? addDaysISO(today, -7);
+  const gap = Math.max(1, Math.min(daysBetween(lastDate, today), 10));
+  const count = Math.min(gap, CATCHUP_MERCHANTS.length);
+  if (count <= 0) return { ok: true, imported: 0 };
+
+  const { data: cats } = await supabase.from("categories").select("id,name");
+  const catByName = new Map<string, string>((cats ?? []).map((c: { id: string; name: string }) => [c.name, c.id]));
+
+  const rows = CATCHUP_MERCHANTS.slice(0, count).map((m, i) => ({
+    user_id: user.id,
+    account_id,
+    category_id: catByName.get(categorizeMerchant(m.merchant)) ?? catByName.get("Other") ?? null,
+    amount: m.amount,
+    type: "expense" as const,
+    merchant: m.merchant,
+    occurred_on: addDaysISO(today, -(i + 1)),
+    source: "import" as const,
+  }));
+
+  const { error } = await supabase.from("transactions").insert(rows);
+  if (error) return { error: error.message };
+
+  const total = rows.reduce((s, r) => s + r.amount, 0);
+  const { data: acc } = await supabase.from("accounts").select("current_balance").eq("id", account_id).single();
+  if (acc) {
+    await supabase
+      .from("accounts")
+      .update({ current_balance: Number(acc.current_balance) - total })
+      .eq("id", account_id);
+  }
+
+  revalidatePath("/dashboard", "layout");
+  return { ok: true, imported: rows.length };
 }

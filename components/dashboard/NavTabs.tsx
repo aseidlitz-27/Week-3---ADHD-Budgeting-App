@@ -11,6 +11,7 @@ const TABS = [
   { label: "Transactions", href: "/dashboard/transactions" },
   { label: "Bills", href: "/dashboard/bills" },
   { label: "Accounts", href: "/dashboard/accounts" },
+  { label: "Settings", href: "/dashboard/settings" },
 ];
 
 export default function NavTabs() {

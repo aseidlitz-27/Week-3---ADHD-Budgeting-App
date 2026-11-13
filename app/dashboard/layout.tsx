@@ -19,6 +19,21 @@ export default async function DashboardLayout({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Send new users through the guided setup first.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("onboarding_completed")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.onboarding_completed) redirect("/setup");
+
+  const { data: settings } = await supabase
+    .from("settings")
+    .select("density")
+    .eq("user_id", user.id)
+    .single();
+  const compact = settings?.density === "compact";
+
   return (
     <Box sx={{ minHeight: "100dvh", bgcolor: "background.default" }}>
       <AppBar position="static" color="primary" elevation={0}>
@@ -39,7 +54,7 @@ export default async function DashboardLayout({
         </Box>
       </AppBar>
 
-      <Container maxWidth="md" sx={{ py: 4 }}>
+      <Container maxWidth="md" sx={{ py: compact ? 2.5 : 4 }}>
         {children}
       </Container>
     </Box>

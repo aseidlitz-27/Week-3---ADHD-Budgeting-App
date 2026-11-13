@@ -21,7 +21,15 @@ export async function connectSimulatedBank(): Promise<Result> {
 
   const { data: accounts, error: accErr } = await supabase
     .from("accounts")
-    .insert(SEED_ACCOUNTS.map((a) => ({ ...a, user_id: user.id })))
+    .insert(
+      SEED_ACCOUNTS.map((a) => ({
+        ...a,
+        user_id: user.id,
+        // A revocable, read-only token stands in for the bank connection.
+        // We never store bank credentials (fake data only).
+        external_ref: `tok_sim_${crypto.randomUUID().slice(0, 12)}`,
+      })),
+    )
     .select("id,name");
   if (accErr || !accounts) return { error: accErr?.message ?? "Could not create accounts." };
 

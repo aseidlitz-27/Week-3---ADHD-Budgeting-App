@@ -38,6 +38,10 @@ export default function AccountsClient({ accounts }: { accounts: AccountRow[] })
   return (
     <Stack spacing={2}>
       {error && <Alert severity="error">{error}</Alert>}
+      <Alert severity="info" icon={false}>
+        🔒 We connect with a <b>read-only token</b> — never your bank password — and you can
+        revoke it anytime. (This demo uses simulated data.)
+      </Alert>
       {accounts.map((a) => {
         const active = a.connection_status === "active";
         return (
@@ -61,7 +65,7 @@ export default function AccountsClient({ accounts }: { accounts: AccountRow[] })
                 </Typography>
                 <Chip
                   size="small"
-                  label={active ? "Connected" : "Disconnected"}
+                  label={active ? "Connected · read-only" : "Access revoked"}
                   color={active ? "success" : "default"}
                   sx={{ mt: 0.5 }}
                 />
@@ -70,7 +74,7 @@ export default function AccountsClient({ accounts }: { accounts: AccountRow[] })
             <Box sx={{ mt: 2 }}>
               {active ? (
                 <Button size="small" variant="outlined" color="error" disabled={pending} onClick={() => change(a.id, "revoked")}>
-                  Disconnect
+                  Revoke access
                 </Button>
               ) : (
                 <Button size="small" variant="outlined" disabled={pending} onClick={() => change(a.id, "active")}>

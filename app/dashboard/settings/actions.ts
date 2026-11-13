@@ -36,3 +36,37 @@ export async function updateSettings(formData: FormData): Promise<Result> {
   revalidatePath("/dashboard", "layout");
   return { ok: true };
 }
+
+/**
+ * Erase all of the signed-in user's data (every table). The login itself
+ * remains, but the account is reset to a fresh, pre-onboarding state.
+ */
+export async function deleteAllData(): Promise<Result> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You are not signed in." };
+
+  // Delete children before parents to respect foreign keys.
+  const tables = ["transactions", "reminders", "category_rules", "bills", "incomes", "accounts", "categories", "rewards"];
+  for (const t of tables) {
+    const { error } = await supabase.from(t).delete().eq("user_id", user.id);
+    if (error) return { error: `Could not erase ${t}: ${error.message}` };
+  }
+  // Reset profile/settings so the account starts fresh.
+  await supabase.from("profiles").update({ display_name: null, onboarding_completed: false }).eq("id", user.id);
+  await supabase
+    .from("settings")
+    .update({
+      safe_to_spend_buffer: 0,
+      reminder_lead_days: 3,
+      reminder_style: "gentle",
+      density: "calm",
+      notifications_enabled: true,
+    })
+    .eq("user_id", user.id);
+
+  revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}

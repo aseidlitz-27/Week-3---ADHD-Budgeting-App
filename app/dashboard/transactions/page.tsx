@@ -17,6 +17,11 @@ export default async function TransactionsPage() {
     supabase.from("accounts").select("id,name").order("created_at", { ascending: true }),
   ]);
 
+  // Keep "Other" at the end of category lists (common UX convention).
+  const sortedCats = [...(cats ?? [])].sort((a: { name: string }, b: { name: string }) =>
+    a.name === "Other" ? 1 : b.name === "Other" ? -1 : a.name.localeCompare(b.name),
+  );
+
   return (
     <Stack spacing={3}>
       <Typography variant="h1" component="h1">
@@ -36,7 +41,7 @@ export default async function TransactionsPage() {
       ) : (
         <TransactionsClient
           transactions={(txns ?? []) as never}
-          categories={(cats ?? []) as never}
+          categories={sortedCats as never}
           accounts={accounts as never}
         />
       )}

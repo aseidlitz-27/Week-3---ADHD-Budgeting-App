@@ -3,6 +3,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { createClient } from "@/lib/supabase/server";
 import SettingsClient, { type SettingsRow } from "@/components/budget/SettingsClient";
+import PrivacyControls from "@/components/budget/PrivacyControls";
 
 export default async function SettingsPage() {
   const supabase = createClient();
@@ -29,6 +30,13 @@ export default async function SettingsPage() {
           density: "calm",
           notifications_enabled: true,
         }) as SettingsRow} />
+      </Paper>
+
+      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: 1, borderColor: "divider" }}>
+        <Typography variant="h3" component="h2" sx={{ mb: 2 }}>
+          Privacy &amp; your data
+        </Typography>
+        <PrivacyControls />
       </Paper>
     </Stack>
   );

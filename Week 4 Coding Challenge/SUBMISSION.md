@@ -10,6 +10,7 @@
 1. **GitHub repository:** https://github.com/aseidlitz-27/Week-3---ADHD-Budgeting-App
 2. **Live app (Vercel):** https://week-3-adhd-budgeting-app-seven.vercel.app
 3. **Database diagram:** https://github.com/aseidlitz-27/Week-3---ADHD-Budgeting-App/blob/main/docs/database-diagram.md
+4. **ADR folder (`docs/adr`):** https://github.com/aseidlitz-27/Week-3---ADHD-Budgeting-App/tree/main/docs/adr
 
 ## Documents
 

@@ -217,10 +217,10 @@ This is the single most correctness-critical part of the app; it will have unit 
 
 Supabase calls these Row Level Security (RLS). RLS is turned on for **every** table.
 
-- [ ] RLS is turned on for every one of the 10 tables.
-- [ ] Each table has a rule that lets people act only on their own rows (`user_id = auth.uid()`, and `id = auth.uid()` for `profiles`).
-- [ ] The rule covers read, create, change, and delete, all scoped to the owner.
-- [ ] Tested with two accounts — one person could not see or change the other's information (including the new `incomes` and bill-linked `transactions`).
+- [x] RLS is turned on for every one of the 10 tables.
+- [x] Each table has a rule that lets people act only on their own rows (`user_id = auth.uid()`, and `id = auth.uid()` for `profiles`).
+- [x] The rule covers read, create, change, and delete, all scoped to the owner.
+- [x] Tested with two accounts — one person could not see or change the other's information (including the new `incomes` and bill-linked `transactions`).
 
 ---
 
@@ -232,8 +232,8 @@ Generated as a **Mermaid diagram** at `docs/database-diagram.md` (GitHub renders
 
 ## Migration files
 
-- [ ] Every change to the database is a SQL migration file in `docs/supabase/migrations/`.
-- [ ] Each file name says what it does:
+- [x] Every change to the database is a SQL migration file in `docs/supabase/migrations/`.
+- [x] Each file name says what it does:
   - `0001_init_schema.sql` — create the 10 tables.
   - `0002_enable_rls.sql` — enable RLS + owner-only policies on every table.
   - `0003_seed_defaults.sql` — auto-create profile, settings, and default categories on sign-up.

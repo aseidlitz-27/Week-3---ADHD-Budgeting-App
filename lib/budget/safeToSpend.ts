@@ -49,7 +49,7 @@ export function computeSafeToSpend(
     upcomingBills += Math.abs(Number(b.amount)) * count;
   }
 
-  const safe = currentBalance - upcomingBills + buffer; // DEMO: intentional regression (should be - buffer)
+  const safe = currentBalance - upcomingBills - buffer;
   const days = Math.max(1, daysBetween(today, windowEnd));
   const perDay = safe > 0 ? safe / days : 0;
 

@@ -1,0 +1,26 @@
+{
+  "note": "Integrity manifest for the Week 1 Claude Skills, vendored into this app repo. The skills-gate CI check fails if any file is missing or its contents change without updating this manifest.",
+  "generated": "2026-11-18",
+  "skills": [
+    {
+      "file": ".claude/skills/accessibility.md",
+      "sha256": "3aa045ba8d2db6d99bb7961f4b430b928aceaf84dbdbd863540fd22e13a17bce"
+    },
+    {
+      "file": ".claude/skills/performance-guard.md",
+      "sha256": "a108a9b9ecbd42f4a21e6927bf3f1b788283bbb63710774814433e35ac62242e"
+    },
+    {
+      "file": ".claude/skills/security-guard.md",
+      "sha256": "a45c085f580e787d0942c9f47f3f1a841c3f2b271fe26c6dfb508c08ca7dfce1"
+    },
+    {
+      "file": ".claude/skills/testing-standards.md",
+      "sha256": "a85d63f5d0e60d5afe679cc6e1ac9c94d49bb2927da4c7c51536b6930cc2dd81"
+    },
+    {
+      "file": ".claude/skills/ux-standards.md",
+      "sha256": "a2e1579ec5b9667efb1f674c51dc6d3713322068896ac95cc4fdbdeacd9bd123"
+    }
+  ]
+}

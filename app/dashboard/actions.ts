@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SEED_ACCOUNTS, generateSeedTransactions } from "@/lib/budget/sampleData";
 import { categorizeMerchant } from "@/lib/budget/categorize";
 import { todayISO, addDaysISO, daysBetween } from "@/lib/budget/recurrence";
+import { summarizeByCategory, type CatchUpItem, type CategoryTotal } from "@/lib/budget/catchUpSummary";
 
 type Result = { ok?: true; error?: string };
 
@@ -197,7 +198,23 @@ const CATCHUP_MERCHANTS: { merchant: string; amount: number }[] = [
  * Shame-free re-entry: import the transactions that happened while the user was
  * away, from their last recorded activity up to today. Fake data only.
  */
-export async function catchUp(): Promise<{ ok?: true; error?: string; imported?: number }> {
+export type CatchUpLineItem = { date: string; merchant: string; amount: number; category: string };
+
+export type CatchUpResult =
+  | { error: string }
+  | {
+      ok: true;
+      imported: number;
+      beforeBalance: number;
+      afterBalance: number;
+      total: number;
+      fromDate: string;
+      toDate: string;
+      byCategory: CategoryTotal[];
+      items: CatchUpLineItem[];
+    };
+
+export async function catchUp(): Promise<CatchUpResult> {
   const supabase = createClient();
   const {
     data: { user },
@@ -212,6 +229,14 @@ export async function catchUp(): Promise<{ ok?: true; error?: string; imported?:
   if (!accts || accts.length === 0) return { error: "Connect a bank first." };
   const account_id = accts[0].id;
 
+  // Balance the user currently sees (sum across all their accounts), captured
+  // BEFORE the import so we can show a before -> after.
+  const { data: allAccts } = await supabase.from("accounts").select("current_balance");
+  const beforeBalance = (allAccts ?? []).reduce(
+    (s, a: { current_balance: number }) => s + Number(a.current_balance),
+    0,
+  );
+
   const { data: latest } = await supabase
     .from("transactions")
     .select("occurred_on")
@@ -221,15 +246,34 @@ export async function catchUp(): Promise<{ ok?: true; error?: string; imported?:
   const lastDate = latest?.[0]?.occurred_on ?? addDaysISO(today, -7);
   const gap = Math.max(1, Math.min(daysBetween(lastDate, today), 10));
   const count = Math.min(gap, CATCHUP_MERCHANTS.length);
-  if (count <= 0) return { ok: true, imported: 0 };
+  if (count <= 0) {
+    return {
+      ok: true,
+      imported: 0,
+      beforeBalance,
+      afterBalance: beforeBalance,
+      total: 0,
+      fromDate: today,
+      toDate: today,
+      byCategory: [],
+      items: [],
+    };
+  }
 
   const { data: cats } = await supabase.from("categories").select("id,name");
   const catByName = new Map<string, string>((cats ?? []).map((c: { id: string; name: string }) => [c.name, c.id]));
 
-  const rows = CATCHUP_MERCHANTS.slice(0, count).map((m, i) => ({
+  // One source of truth for each item's display category and its stored id.
+  const items: CatchUpItem[] = CATCHUP_MERCHANTS.slice(0, count).map((m) => ({
+    merchant: m.merchant,
+    amount: m.amount,
+    category: categorizeMerchant(m.merchant),
+  }));
+
+  const rows = items.map((m, i) => ({
     user_id: user.id,
     account_id,
-    category_id: catByName.get(categorizeMerchant(m.merchant)) ?? catByName.get("Other") ?? null,
+    category_id: catByName.get(m.category) ?? catByName.get("Other") ?? null,
     amount: m.amount,
     type: "expense" as const,
     merchant: m.merchant,
@@ -250,5 +294,20 @@ export async function catchUp(): Promise<{ ok?: true; error?: string; imported?:
   }
 
   revalidatePath("/dashboard", "layout");
-  return { ok: true, imported: rows.length };
+  return {
+    ok: true,
+    imported: rows.length,
+    beforeBalance,
+    afterBalance: beforeBalance - total,
+    total,
+    fromDate: addDaysISO(today, -count),
+    toDate: addDaysISO(today, -1),
+    byCategory: summarizeByCategory(items),
+    items: rows.map((r, i) => ({
+      date: r.occurred_on,
+      merchant: r.merchant,
+      amount: r.amount,
+      category: items[i].category,
+    })),
+  };
 }

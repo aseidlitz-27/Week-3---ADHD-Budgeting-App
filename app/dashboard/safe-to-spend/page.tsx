@@ -4,12 +4,13 @@ import Typography from "@mui/material/Typography";
 import { createClient } from "@/lib/supabase/server";
 import { computeSafeToSpend } from "@/lib/budget/safeToSpend";
 import type { ForecastBill, ForecastIncome } from "@/lib/budget/forecast";
-import { todayISO } from "@/lib/budget/recurrence";
+import { todayISO, daysBetween } from "@/lib/budget/recurrence";
 import SafeToSpendNumber from "@/components/budget/SafeToSpendNumber";
 import SpendCheck from "@/components/budget/SpendCheck";
 import PaydayBuffer from "@/components/budget/PaydayBuffer";
 import IncomeManager, { type IncomeRow } from "@/components/budget/IncomeManager";
 import ConnectBankButton from "@/components/budget/ConnectBankButton";
+import ReEntryCard from "@/components/budget/ReEntryCard";
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -28,14 +29,21 @@ export default async function SafeToSpendPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: accounts }, { data: bills }, { data: incomes }, { data: settings }, { data: todayTx }] =
-    await Promise.all([
-      supabase.from("accounts").select("current_balance"),
-      supabase.from("bills").select("name,amount,due_date,recurrence,status"),
-      supabase.from("incomes").select("id,source_name,amount,recurrence,next_date,is_variable"),
-      supabase.from("settings").select("safe_to_spend_buffer").eq("user_id", user!.id).single(),
-      supabase.from("transactions").select("amount,type").eq("occurred_on", todayISO()),
-    ]);
+  const [
+    { data: accounts },
+    { data: bills },
+    { data: incomes },
+    { data: settings },
+    { data: todayTx },
+    { data: latestTx },
+  ] = await Promise.all([
+    supabase.from("accounts").select("current_balance"),
+    supabase.from("bills").select("name,amount,due_date,recurrence,status"),
+    supabase.from("incomes").select("id,source_name,amount,recurrence,next_date,is_variable"),
+    supabase.from("settings").select("safe_to_spend_buffer").eq("user_id", user!.id).single(),
+    supabase.from("transactions").select("amount,type").eq("occurred_on", todayISO()),
+    supabase.from("transactions").select("occurred_on").order("occurred_on", { ascending: false }).limit(1),
+  ]);
 
   if (!accounts || accounts.length === 0) {
     return (
@@ -67,11 +75,16 @@ export default async function SafeToSpendPage() {
     .filter((t: { type: string }) => t.type === "expense")
     .reduce((s, t: { amount: number }) => s + Number(t.amount), 0);
 
+  const lastTxDate = (latestTx as { occurred_on: string }[] | null)?.[0]?.occurred_on;
+  const daysSince = lastTxDate ? daysBetween(lastTxDate, todayISO()) : 0;
+
   return (
     <Stack spacing={3}>
       <Typography variant="h1" component="h1">
         Safe to spend
       </Typography>
+
+      {daysSince >= 2 && <ReEntryCard daysSince={daysSince} />}
 
       <SafeToSpendNumber sts={sts} />
 

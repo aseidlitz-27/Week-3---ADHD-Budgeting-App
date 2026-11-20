@@ -45,34 +45,54 @@ The two manual test case scenarios and their results are in
 
 ---
 
-<!--
-  ⚠️  The two sections below MUST be written by YOU, by hand, WITHOUT AI.
-  Morgan checks. Write at least two full paragraphs in each, in your own words,
-  with full technical detail. Reminders of what you actually did (don't copy —
-  just jog your memory):
-    • What I Did — created the week-5-ci-cd branch; added a GitHub Actions
-      workflow that runs on every push with four jobs (lint+types, Vitest unit
-      tests, next build, skills gate); wrote 36 unit tests from the Week 2 use
-      cases/BDD scenarios for the budget math (safe-to-spend, forecast,
-      recurrence, categorize, subscriptions, rewards); vendored the five Week 1
-      skills into .claude/skills/ and wrote a gate script that verifies their
-      integrity (SHA-256 manifest) and enforces their rules (secret scan,
-      tests-must-exist, no heavy imports, a11y via ESLint); ran two manual test
-      cases on the live app; proved a failing check turns the pipeline red;
-      opened a PR and merged to main.
-    • What I Learned — what CI/CD actually is and why "red means stop"; the
-      testing pyramid (many fast unit tests, few slow ones); how a test caught a
-      real bug (the "netflix"/"tfl" categorizer quirk); why we test by hand even
-      with automation; how this helps in team project work.
--->
-
 ## What I Did
 
-_Write at least two paragraphs here, in your own words, with full technical
-detail. **Do not use AI for this.**_
+I created a new feature branch (`week-5-ci-cd`) off `main` in the ADHD Budgeting
+App repository and reviewed `CLAUDE.md` and previous Architecture Decision
+Records (ADRs) to align with the existing setup.
+
+Next, I built a GitHub Actions pipeline to automate key checks on every push and
+pull request:
+
+- **Code quality and accessibility:** Automated linting and type-checking to enforce
+  project standards and accessibility.
+- **Automated unit tests:** Added Vitest and wrote 36 unit tests covering core
+  budget logic—including safe-to-spend, balance forecasts, recurring
+  transactions, categorization, subscriptions, and rewards. When I noticed
+  "Netflix" was being categorized under Transport, I documented it as a known
+  quirk and logged it in our ADRs rather than silently altering the behavior.
+- **Project rules gate:** Built a custom verification script to check our Week 1
+  Claude Skills against an integrity manifest and automatically enforce project
+  rules (scanning for hard-coded secrets, ensuring tests exist, and blocking
+  heavy imports).
+
+Finally, I recorded these decisions in a new ADR, wrote manual test scenarios
+(covering account data isolation and safe-to-spend accuracy), and opened Pull
+Request #11. Before merging, Claude Code pushed a small regression to confirm
+the pipeline would catch it; once the test check failed as expected, I reverted the
+change, verified the run turned green again, and merged the PR to trigger an
+automatic deployment on Vercel.
 
 ## What I Learned
 
-_Write at least two paragraphs here: what you learned, what you'd do differently
-next time, and how these lessons help in future team project work. **Do not use
-AI for this.**_
+Running the manual test case scenarios revealed concrete room for improvement in
+one of the features, which was adjusted right after completing the tests: the
+"Catching up on recent changes" call-to-action needed to display dates, categories,
+and amounts alongside a clear before-and-after summary.
+
+Looking at the broader learning process, the course provides strong transparency
+around what needs to be done and what good results can look like—through live
+working sessions, office hours for open questions, and reference materials in Figma
+and Notion. Paired with an agile mindset, we are encouraged to jump in at the deep
+end rather than trying to understand every piece cohesively before starting the
+assignment. Letting go of the need to know everything upfront ("surrendering" to the
+process) has consistently left me amazed by the outcomes we can achieve.
+
+At the same time, dealing with high technical complexity while moving at that pace
+leaves very little space to integrate and build the ability to articulate the material in a
+fluent manner. This raises an important question for my workflow going forward: how
+can I organize myself to build stronger articulative skills? One concrete approach I
+want to try is "dog feeding" Claude with the given materials beforehand and
+prompting it to keep that context in the background while setting accompanying
+reflection questions before I start the process—so I am actively processing and
+articulating the material along the way rather than only afterward.
